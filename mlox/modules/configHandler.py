@@ -68,6 +68,8 @@ class configHandler():
     configFile = None
     #The type of config file (Is it a 'Morrowind.ini', raw, or something else?)
     fileType = None
+    # The string replacement used when writing the configuration back to disk.
+    gamefile_replacement = 'GameFile{index}={plugin}'
 
     def __init__(self,configFile,fileType = None):
         self.configFile = configFile
@@ -112,6 +114,35 @@ class configHandler():
         config_logger.debug("Clearing configuration file: {0}".format(self.configFile))
         return self.write([])
 
+    def generate_plugin_list(self, list_of_plugins):
+        """
+        Generates a string of configuration entires for each plugin.
+        """
+        out_str = "\n"
+        for i in range(0, len(list_of_plugins)):
+            file_string = self.gamefile_replacement + "\n"
+            out_str += file_string.format(index=i, plugin=list_of_plugins[i])
+        return out_str
+
+    def update_configuration_buffer(self, file_buffer, new_list):
+        """
+        Updates the input configuration string with the new list of plugins.
+        :param file_buffer: A string buffer containing the configuration file.
+        :param new_list: The newly formatted list of plugins.
+        :return: String The newly formatted complete configuration.
+        """
+        sections = self.section_re.split(file_buffer)
+
+        # Replace the data in the '[Game Files]' section with the generated plugins string
+        try:
+            config_index = sections.index('[Game Files]')
+        except IndexError:
+            config_logger.error("Configuration file does not have a '[Game Files]' section!")
+            return None
+        sections[config_index+1] = out_str
+        file_buffer = reduce(lambda x,y: x+y,sections)
+        return file_buffer
+
     def write(self, list_of_plugins):
         """
         Write a list of plugins to a configuration file
@@ -121,14 +152,12 @@ class configHandler():
         config_logger.debug("Writing configuration file: {0}".format(self.configFile))
 
         #Only handling Morrowind.ini right now
-        if (self.fileType != "Morrowind"):
+        if (self.fileType == "Oblivion"):
             config_logger.error("Can not write non Morrowind.ini configuration files.")
             return False
 
         # Generate the plugins string
-        out_str = "\n"
-        for i in range(0, len(list_of_plugins)):
-            out_str += "GameFile{index}={plugin}\n".format(index=i, plugin=list_of_plugins[i])
+        out_str = self.generate_plugin_list(list_of_plugins)
 
         # Open and read a configuration file, splitting the result into multiple sections.
         try:
@@ -138,16 +167,11 @@ class configHandler():
             return False
         file_buffer = file_handle.read()
         file_handle.close()
-        sections = self.section_re.split(file_buffer)
 
-        # Replace the data in the '[Game Files]' section with the generated plugins string
-        try:
-            config_index = sections.index('[Game Files]')
-        except IndexError:
-            config_logger.error("Configuration file does not have a '[Game Files]' section!")
+        file_buffer = self.update_configuration_buffer(file_buffer, out_str)
+        if file_buffer is None:
+            config_logger.error("Failed to update configuration buffer.")
             return False
-        sections[config_index+1] = out_str
-        file_buffer = reduce(lambda x,y: x+y,sections)
 
         # Write the modified buffer to the configuration file
         try:
@@ -159,6 +183,38 @@ class configHandler():
         file_handle.close()
 
         return True
+
+
+class configHandlerOpenMW(configHandler):
+    """
+    A class for handling OpenMW plugin configuration files.
+    """
+
+    gamefile_replacement = 'content={plugin}'
+
+    def generate_plugin_list(self, list_of_plugins):
+        """
+        Generates a string of configuration entires for each plugin.
+        """
+        out_str = "\n"
+        for i in range(0, len(list_of_plugins)):
+            file_string = self.gamefile_replacement + "\n"
+            out_str += file_string.format(index=i, plugin=list_of_plugins[i])
+        config_logger.info(out_str)
+        return out_str
+
+    def update_configuration_buffer(self, file_buffer, new_list):
+        """
+        Updates the input configuration string with the new list of plugins.
+        :param file_buffer: A string buffer containing the configuration file.
+        :param new_list: The newly formatted list of plugins.
+        :return: String The newly formatted complete configuration.
+        """
+        lines = file_buffer.split('\n')
+        sections = self.section_re.split(file_buffer)
+        file_buffer = "\n".join([l for l in lines if not l.startswith('content=')])
+        file_buffer += new_list
+        return file_buffer
 
 
 class dataDirHandler:
