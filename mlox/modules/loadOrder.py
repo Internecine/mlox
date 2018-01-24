@@ -79,7 +79,7 @@ class loadorder:
         self.datadir = None         #This tells the parser to not worry about things like [SIZE] checks, or trying to read the plugin descriptions
         self.plugin_file = fromfile
 
-        self.order = configHandler.configHandler(fromfile).read()
+        self.order = configHandler.build_config_handler(fromfile).read()
         if self.order == []:
             order_logger.warning("No plugins detected.\nmlox understands lists of plugins in the format used by Morrowind.ini or Wrye Mash.\nIs that what you used for input?")
 
@@ -264,7 +264,7 @@ class loadorder:
             if configHandler.dataDirHandler(self.datadir).write(self.new_order):
                 self.is_sorted = True
         if isinstance(self.plugin_file,str):
-            if configHandler.configHandler(self.plugin_file,self.game_type).write(self.new_order):
+            if configHandler.build_config_handler(self.plugin_file,self.game_type).write(self.new_order):
                 self.is_sorted = True
 
         if not self.is_sorted:

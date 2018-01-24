@@ -39,6 +39,16 @@ def partition_esps_and_esms(filelist):
     return(esm_files, esp_files)
 
 
+def build_config_handler(from_file, file_type=None):
+    """
+    Creates a new configHandler for a file.
+    """
+    if from_file.endswith('.cfg') and file_type is None:
+        return configHandlerOpenMW(from_file, file_type)
+    else:
+        return configHandler(from_file, file_type)
+
+
 class configHandler():
     """
     A class for handling plugin configuration files.
